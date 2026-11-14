@@ -1,0 +1,70 @@
+---
+title: "Technical Audit Assignment: Boundary Discontinuities in Healthcare Coverage Models"
+subtitle: "Course: Explainable AI | Team Project 2"
+date: last-modified
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: show
+    theme: cosmo
+---
+
+## Technical Audit Mandate
+
+Your team has been commissioned by a state healthcare regulatory board to audit a proprietary machine learning engine (`vendor_api`) used to determine public health coverage eligibility.
+
+The vendor provides a black-box scoring service:
+```python
+import vendor_api
+
+# X_audit is your evaluation matrix from data/audit_sample.parquet
+probabilities = vendor_api.predict_proba(X_audit) # Shape: (N, 2)
+predictions = vendor_api.predict(X_audit)           # Shape: (N,)
+
+print("Vendor API successfully initialized. Sample shape:", probabilities.shape)
+```
+
+You are provided with an empirical dataset in `data/audit_sample.parquet` containing 10,000 real individual records drawn from US Census American Community Survey (ACS) Public Use Microdata spanning New York and Pennsylvania.
+
+
+
+## The Audit Inquiries
+
+### Inquiry 1: Continuous Approximation of Statutory Eligibility Cliffs
+In statutory law, entitlement to certain major healthcare assistance programs (e.g., Medicare) begins deterministically on an individual's 65th birthday:
+$$\text{StatutoryEligible}(a) = \mathbb{I}(a \ge 65)$$
+
+1. Select an individual from your audit dataset aged 64.
+2. Hold all non-age characteristics constant and sweep the Age feature across the interval $[55, 75]$ in steps of 1 year.
+3. Plot the vendor model's predicted probability trajectory across this age span.
+4. Analyze how the vendor's continuous scoring architecture approximates this sharp statutory step-function. Does the model exhibit "probability leakage" for individuals in their early 60s?
+
+### Inquiry 2: Boundary Breach in Local Linear Surrogates and Coalition Sampling
+The vendor uses local perturbation-based linear surrogate models (LIME) and game-theoretic coalition models (KernelSHAP) to generate adverse action notices explaining why applicants were denied.
+
+1. **LIME Perturbation Breach**:
+   - Select an applicant who is exactly 64 years old and has not reached statutory eligibility.
+   - Generate a synthetic local neighborhood using Gaussian perturbation ($z \sim \mathcal{N}(x, \sigma^2)$) with `discretize_continuous=False`.
+   - Empirically measure the exact percentage of synthetic perturbation points that cross into $\text{Age} \ge 65$ territory.
+   - Fit a weighted linear regression surrogate to this neighborhood and record the goodness-of-fit ($R^2$).
+
+2. **KernelSHAP Background Substitution Across Statutory Boundaries**:
+   - Exact KernelSHAP on $D=18$ features requires evaluating $2^{18} = 262,144$ coalitions per background instance. To make computation tractable, practitioners compress the background distribution using $k$-means: `shap.kmeans(X_audit, 10)`.
+   - Evaluate KernelSHAP on the 64-year-old applicant using this compressed background (`nsamples=100`).
+   - Examine the background centroids: observe that multiple population centroids have $\text{Age} \ge 65$.
+   - Explain how coalition masking substitutes these post-65 background values into the pre-65 applicant's evaluation, creating an artificial jump in predicted probability.
+   - Show that KernelSHAP's weighted linear regression misinterprets this discrete step-jump as a strong positive local attribution for Age, attributing eligibility to an applicant who is legally ineligible.
+
+### Inquiry 3: Mathematical Analysis of Surrogate Failure
+1. Derive the analytical expression for the slope of a linear regression surrogate fitted to a function containing a step-discontinuity within the support of the sampling kernel.
+2. Explain why fitting a straight line across a discontinuous cliff produces a non-zero local gradient for an applicant who is not yet eligible.
+3. Formulate an adaptive or bounded perturbation rule that prevents synthetic samples from breaching known statutory policy thresholds.
+
+### Inquiry 4: Cross-State Policy Shift & Deployment Governance
+Your audit data contains cohorts from New York and Pennsylvania, which operate under different state-level Medicaid thresholds.
+
+1. Evaluate whether the model's prediction uncertainty and surrogate stability differ between these two state jurisdictions.
+2. Formulate an operational recommendation for the regulatory board:
+   - Should this model be approved for automated public benefit determinations?
+   - If approved, what strict boundary validation guardrails must be imposed for applicants aged 60–65?

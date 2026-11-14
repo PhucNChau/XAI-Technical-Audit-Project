@@ -1,0 +1,78 @@
+---
+title: "Project 2 Handout: Technical Audit of Healthcare Coverage Policy Models"
+subtitle: "Course: Explainable AI | Undergraduate Group 2"
+date: last-modified
+format:
+  pdf:
+    documentclass: article
+    geometry:
+      - top=1in
+      - bottom=1in
+      - left=1in
+      - right=1in
+    colorlinks: true
+  html:
+    embed-resources: true
+    toc: true
+    theme: cosmo
+---
+
+# Project Overview
+
+- **Target Audience:** Undergraduate Student Teams (Group 2)  
+- **Evaluation Mode:** 4-Week Technical Audit, Report, and Oral Defense  
+- **Provided Data:** `data/audit_sample.parquet` (10,000 real US Census records across NY and PA)  
+- **Model Access:** `vendor_api` black-box scoring service  
+
+
+
+# Environment Setup with `uv`
+
+This course uses `uv` as the package and environment manager. It creates isolated environments and installs dependencies quickly:
+
+1. **Install `uv` (one-time setup if needed)**:
+   - macOS / Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+   - Windows (PowerShell): `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+
+2. **Create and Activate Your Environment**:
+   ```bash
+   # From inside this project folder:
+   uv venv
+   source .venv/bin/activate       # On macOS / Linux
+   # .venv\Scripts\activate        # On Windows
+
+   # Install dependencies
+   uv pip install -r requirements.txt
+   ```
+
+3. **Verify Vendor API Connectivity**:
+   ```python
+   import pandas as pd
+   import vendor_api
+
+   df_audit = pd.read_parquet("data/audit_sample.parquet")
+   probs = vendor_api.predict_proba(df_audit)
+   print("Vendor API successfully initialized. Sample shape:", probs.shape)
+   ```
+
+
+
+# Four-Week Milestone Timeline
+
+- **Week 1 (Exploration & Baseline)**: Load `audit_sample.parquet`. Inspect feature distributions. Run baseline predictions through `vendor_api` and map baseline score distributions.
+- **Week 2 (The Step-Function Vulnerability)**: Evaluate local linear surrogates (LIME) and coalition sampling (KernelSHAP) around age 64. Quantify perturbation and background substitution spillover across the statutory Medicare threshold at age 65.
+- **Week 3 (First-Principles Implementation)**: Analyze surrogate slope distortion across discontinuous boundaries in pure NumPy. Formulate boundary-respecting constraints.
+- **Week 4 (Synthesis & Presentation)**: Evaluate transfer behavior across regional cohorts (NY vs. PA). Finalize your report (`project_brief.qmd`) and deliver your 15-minute presentation with 5 minutes of question time on the last day of class in December.
+
+
+
+# Final Deliverables
+
+1. **Completed Computational Report**: A fully executed Quarto document containing all code, derivations, figures, and written interpretations:
+   ```bash
+   uv run quarto render project_brief.qmd --to html
+   # or to PDF:
+   uv run quarto render project_brief.qmd --to pdf
+   ```
+2. **Team Presentation & Defense**: A 15-minute presentation defending your findings, followed by 5 minutes of question time and peer cross-examination (20 minutes total per group) on the last day of class in December.
+3. **Peer Review Evaluation**: Completed peer review sheet evaluating an assigned peer group's presentation.
